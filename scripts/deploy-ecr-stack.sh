@@ -2,6 +2,6 @@
 STACK_NAME=${1:-ecr-test-stack}
 REPO_NAME=${2:-test}
 
-cd `dirname $0`
+cd "$(dirname "$0")" || exit
 
 rain deploy ../ecr.yaml --params ECRRepoName="${REPO_NAME}" "${STACK_NAME}" -y
