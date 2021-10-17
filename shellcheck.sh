@@ -1,3 +1,3 @@
 #!/bin/bash
 
-find . -name "*.sh" -print | xargs -I {} shellcheck {}
+find . -name "*.sh" -exec shellcheck {} + 
