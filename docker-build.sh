@@ -10,5 +10,5 @@ if [ "${IS_DEVEL}" = "true" ]; then
   TAG="devel"
 fi
 
-DOCKER_BUILDKIT=1 docker build . --file Dockerfile --tag "${APP_NAME}":"${COMMIT_HASH}" --tag "${APP_NAME}":"${TAG}"
+DOCKER_BUILDKIT=1 docker build . --file Dockerfile --tag "${APP_NAME}":"${COMMIT_HASH}" --tag "${APP_NAME}":"${TAG}" --build-arg COMMIT_HASH="${COMMIT_HASH}"
 
