@@ -3,9 +3,11 @@ package v1
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/athagi/hello-copilot/pkg/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -29,6 +31,17 @@ func UploadImage(c *gin.Context) {
 	key = "myKey1.jpg"
 	timeout = 0
 
+	form, _ := c.MultipartForm()
+	files := form.File["file"]
+	uuid := util.GenerateUUID4()
+
+	for _, file := range files {
+		fmt.Println(uuid)
+		err := c.SaveUploadedFile(file, "images/"+uuid+".png")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		}
+	}
 	// flag.StringVar(&bucket, "b", "", "Bucket name.")
 	// flag.StringVar(&key, "k", "", "Object key name.")
 	// flag.DurationVar(&timeout, "d", 0, "Upload timeout.")
@@ -87,5 +100,5 @@ func UploadImage(c *gin.Context) {
 	}
 
 	fmt.Printf("successfully uploaded file to %s/%s\n", bucket, key)
-
+	c.JSON(http.StatusOK, gin.H{"message": "success!!"})
 }
