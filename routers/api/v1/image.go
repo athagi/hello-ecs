@@ -3,8 +3,10 @@ package v1
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/athagi/hello-copilot/pkg/util"
@@ -24,28 +26,11 @@ func GetImages(c *gin.Context) {
 }
 
 func UploadImage(c *gin.Context) {
-	var bucket, key string
+	var bucket string
 	var timeout time.Duration
 
 	bucket = "255222094062-sample-images"
-	key = "myKey1.jpg"
 	timeout = 0
-
-	form, _ := c.MultipartForm()
-	files := form.File["file"]
-	uuid := util.GenerateUUID4()
-
-	for _, file := range files {
-		fmt.Println(uuid)
-		err := c.SaveUploadedFile(file, "images/"+uuid+".png")
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
-		}
-	}
-	// flag.StringVar(&bucket, "b", "", "Bucket name.")
-	// flag.StringVar(&key, "k", "", "Object key name.")
-	// flag.DurationVar(&timeout, "d", 0, "Upload timeout.")
-	// flag.Parse()
 
 	// All clients require a Session. The Session provides the client with
 	// shared configuration such as region, endpoint, and credentials. A
@@ -73,18 +58,20 @@ func UploadImage(c *gin.Context) {
 		defer cancelFn()
 	}
 
-	// Uploads the object to S3. The Context will interrupt the request if the
-	// timeout expires.
-	// var reader io.Reader = strings.NewReader("aaaaa")
-	f, err := os.Open("./200.jpg")
-	if err != nil {
-		panic("error")
-	}
+	uuid := util.GenerateUUID4()
+	files, err := c.FormFile("file")
+	ext := strings.Split(files.Filename, ".")[len(strings.Split(files.Filename, "."))-1]
+	fileName := uuid + "." + ext
+
+	f, err := files.Open()
 	defer f.Close()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	}
 
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
+		Key:    aws.String(fileName),
 		Body:   f,
 	})
 
@@ -99,6 +86,6 @@ func UploadImage(c *gin.Context) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("successfully uploaded file to %s/%s\n", bucket, key)
+	log.Printf("successfully uploaded file to %s/%s\n", bucket, fileName)
 	c.JSON(http.StatusOK, gin.H{"message": "success!!"})
 }
