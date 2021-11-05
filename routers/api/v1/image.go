@@ -19,9 +19,61 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Image struct {
+	Name         string
+	LastModified time.Time
+	Size         int64
+	StrageClass  string
+	Owner        string
+}
+
 func GetImages(c *gin.Context) {
+	var bucket string
+	var timeout time.Duration
+
+	bucket = "255222094062-sample-images"
+	timeout = 0
+
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(endpoints.ApNortheast1RegionID)}))
+	// Create a new instance of the service's client with a Session.
+	// Optional aws.Config values can also be provided as variadic arguments
+	// to the New function. This option allows you to provide service
+	// specific configuration.
+	svc := s3.New(sess)
+
+	// Create a context with a timeout that will abort the upload if it takes
+	// more than the passed in timeout.
+	ctx := context.Background()
+	var cancelFn func()
+	if timeout > 0 {
+		ctx, cancelFn = context.WithTimeout(ctx, timeout)
+	}
+	// Ensure the context is canceled to prevent leaking.
+	// See context package for more information, https://golang.org/pkg/context/
+	if cancelFn != nil {
+		defer cancelFn()
+	}
+
+	resp, err := svc.ListObjects(&s3.ListObjectsInput{Bucket: aws.String(bucket)})
+	images := make([]Image, len(resp.Contents))
+	for i, item := range resp.Contents {
+		key := *item.Key
+		lastModified := *item.LastModified
+		size := *item.Size
+		strageClass := *item.StorageClass
+		owner := *item.Owner.DisplayName
+		images[i] = Image{Name: key, LastModified: lastModified, Size: size, StrageClass: strageClass, Owner: owner}
+	}
+
+	if err != nil {
+		log.Fatal("error while listing Object")
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	}
+
 	c.JSON(200, gin.H{
 		"message": "get images",
+		"object":  images,
 	})
 }
 
