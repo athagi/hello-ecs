@@ -5,17 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/athagi/hello-copilot/pkg/util"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,121 +20,111 @@ type Image struct {
 	Name         string
 	LastModified time.Time
 	Size         int64
-	StrageClass  string
-	Owner        string
+}
+
+type Page struct {
+	Page   int
+	Images []Image
 }
 
 func GetImages(c *gin.Context) {
 	var bucket string
-	var timeout time.Duration
+	objectPrefix := ""
+	objectDelimiter := ""
+	maxKeys := 10
 
 	bucket = "255222094062-sample-images"
-	timeout = 0
-
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(endpoints.ApNortheast1RegionID)}))
-	// Create a new instance of the service's client with a Session.
-	// Optional aws.Config values can also be provided as variadic arguments
-	// to the New function. This option allows you to provide service
-	// specific configuration.
-	svc := s3.New(sess)
-
-	// Create a context with a timeout that will abort the upload if it takes
-	// more than the passed in timeout.
-	ctx := context.Background()
-	var cancelFn func()
-	if timeout > 0 {
-		ctx, cancelFn = context.WithTimeout(ctx, timeout)
-	}
-	// Ensure the context is canceled to prevent leaking.
-	// See context package for more information, https://golang.org/pkg/context/
-	if cancelFn != nil {
-		defer cancelFn()
-	}
-
-	resp, err := svc.ListObjects(&s3.ListObjectsInput{Bucket: aws.String(bucket)})
-	images := make([]Image, len(resp.Contents))
-	for i, item := range resp.Contents {
-		key := *item.Key
-		lastModified := *item.LastModified
-		size := *item.Size
-		strageClass := *item.StorageClass
-		owner := *item.Owner.DisplayName
-		images[i] = Image{Name: key, LastModified: lastModified, Size: size, StrageClass: strageClass, Owner: owner}
-	}
-
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-northeast-1"),
+	)
 	if err != nil {
-		log.Fatal("error while listing Object")
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		log.Fatalf("failed to load SDK configuration, %v", err)
 	}
 
+	client := s3.NewFromConfig(cfg)
+	// Set the parameters based on the CLI flag inputs.
+	params := &s3.ListObjectsV2Input{
+		Bucket: &bucket,
+	}
+	if len(objectPrefix) != 0 {
+		params.Prefix = &objectPrefix
+	}
+	if len(objectDelimiter) != 0 {
+		params.Delimiter = &objectDelimiter
+	}
+
+	// Create the Paginator for the ListObjectsV2 operation.
+	p := s3.NewListObjectsV2Paginator(client, params, func(o *s3.ListObjectsV2PaginatorOptions) {
+		if v := int32(maxKeys); v != 0 {
+			o.Limit = v
+		}
+	})
+
+	// Iterate through the S3 object pages, printing each object returned.
+	var i int
+	log.Println("Objects:")
+	pages := []Page{}
+	for p.HasMorePages() {
+		i++
+
+		// Next Page takes a new context for each page retrieval. This is where
+		// you could add timeouts or deadlines.
+		page, err := p.NextPage(context.TODO())
+		if err != nil {
+			log.Fatalf("failed to get page %v, %v", i, err)
+		}
+
+		// Log the objects found
+		images := make([]Image, len(page.Contents))
+		for j, item := range page.Contents {
+			key := *item.Key
+			lastModified := *item.LastModified
+			size := item.Size
+			images[j] = Image{Name: key, LastModified: lastModified, Size: size}
+			fmt.Println(images)
+		}
+		pages = append(pages, Page{Page: i, Images: images})
+	}
 	c.JSON(200, gin.H{
 		"message": "get images",
-		"object":  images,
+		"items":   pages,
 	})
 }
 
 func UploadImage(c *gin.Context) {
-	var bucket string
-	var timeout time.Duration
+	bucket := "255222094062-sample-images"
 
-	bucket = "255222094062-sample-images"
-	timeout = 0
-
-	// All clients require a Session. The Session provides the client with
-	// shared configuration such as region, endpoint, and credentials. A
-	// Session should be shared where possible to take advantage of
-	// configuration and credential caching. See the session package for
-	// more information.
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(endpoints.ApNortheast1RegionID)}))
-	// Create a new instance of the service's client with a Session.
-	// Optional aws.Config values can also be provided as variadic arguments
-	// to the New function. This option allows you to provide service
-	// specific configuration.
-	svc := s3.New(sess)
-
-	// Create a context with a timeout that will abort the upload if it takes
-	// more than the passed in timeout.
-	ctx := context.Background()
-	var cancelFn func()
-	if timeout > 0 {
-		ctx, cancelFn = context.WithTimeout(ctx, timeout)
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-northeast-1"),
+	)
+	if err != nil {
+		log.Fatalf("failed to load SDK configuration, %v", err)
 	}
-	// Ensure the context is canceled to prevent leaking.
-	// See context package for more information, https://golang.org/pkg/context/
-	if cancelFn != nil {
-		defer cancelFn()
-	}
+
+	client := s3.NewFromConfig(cfg)
 
 	uuid := util.GenerateUUID4()
 	files, err := c.FormFile("file")
 	ext := strings.Split(files.Filename, ".")[len(strings.Split(files.Filename, "."))-1]
 	fileName := uuid + "." + ext
 
-	f, err := files.Open()
-	defer f.Close()
+	uploadFile, err := files.Open()
+	defer uploadFile.Close()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 	}
 
-	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
+	uploader := manager.NewUploader(client)
+	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(fileName),
-		Body:   f,
+		Body:   uploadFile,
 	})
 
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == request.CanceledErrorCode {
-			// If the SDK can determine the request or retry delay was canceled
-			// by a context the CanceledErrorCode error code will be returned.
-			fmt.Fprintf(os.Stderr, "upload canceled due to timeout, %v\n", err)
-		} else {
-			fmt.Fprintf(os.Stderr, "failed to upload object, %v\n", err)
-		}
-		os.Exit(1)
+		log.Fatalf("failed to upload file, %v", err)
 	}
 
-	log.Printf("successfully uploaded file to %s/%s\n", bucket, fileName)
+	log.Printf("successfully uploaded file to %s\n", result.Location)
 	c.JSON(http.StatusOK, gin.H{"message": "success!!"})
 }
