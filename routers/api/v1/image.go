@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -27,7 +28,41 @@ type Page struct {
 	Images []Image
 }
 
-func GetImages(c *gin.Context) {
+func DownloadImage(c *gin.Context) {
+	bucket := "255222094062-sample-images"
+	objectKey := c.Query("key")
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-northeast-1"),
+	)
+	if err != nil {
+		log.Fatalf("failed to load SDK configuration, %v", err)
+	}
+
+	f, err := os.Create(objectKey)
+	if err != nil {
+		log.Fatal(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	}
+
+	client := s3.NewFromConfig(cfg)
+	downloader := manager.NewDownloader(client)
+	n, err := downloader.Download(context.TODO(), f, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(objectKey),
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(n)
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "download image",
+		"image name": objectKey,
+	})
+}
+
+func ListImages(c *gin.Context) {
 	var bucket string
 	objectPrefix := ""
 	objectDelimiter := ""
