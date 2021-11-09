@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -39,11 +40,13 @@ func DownloadImage(c *gin.Context) {
 		log.Fatalf("failed to load SDK configuration, %v", err)
 	}
 
-	f, err := os.Create(objectKey)
+	// TODO, use stream not to create tmp file and not to use much memory.
+	f, err := os.Create("tmp")
 	if err != nil {
 		log.Fatal(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 	}
+	defer f.Close()
 
 	client := s3.NewFromConfig(cfg)
 	downloader := manager.NewDownloader(client)
@@ -56,10 +59,12 @@ func DownloadImage(c *gin.Context) {
 		log.Fatal(err)
 	}
 	log.Println(n)
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "download image",
-		"image name": objectKey,
-	})
+
+	_, err = io.Copy(c.Writer, f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 func ListImages(c *gin.Context) {
