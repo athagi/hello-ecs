@@ -27,6 +27,7 @@ func InitRouter() *gin.Engine {
 		apiv1.GET("/images", v1.ListImages)
 		apiv1.POST("/images/upload", v1.UploadImage)
 		apiv1.GET("/images/download", v1.DownloadImage)
+		apiv1.POST("/images/delete", v1.DeleteImage)
 		return r
 	}
 

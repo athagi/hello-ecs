@@ -29,6 +29,33 @@ type Page struct {
 	Images []Image
 }
 
+func DeleteImage(c *gin.Context) {
+	bucket := "255222094062-sample-images"
+	fileName := c.Query("name")
+	fmt.Println(fileName)
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-northeast-1"),
+	)
+	if err != nil {
+		log.Fatalf("failed to load SDK configuration, %v", err)
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	_, err = client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(fileName),
+	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "deleted",
+	})
+}
+
 func DownloadImage(c *gin.Context) {
 	bucket := "255222094062-sample-images"
 	objectKey := c.Query("key")
