@@ -1,8 +1,8 @@
-FROM golang:1.14.4 as builder
+FROM golang:1.17.2 as builder
 
 WORKDIR /go/src
 
-COPY ./main.go  ./
+COPY . .
 
 ARG CGO_ENABLED=0
 ARG GOOS=linux
