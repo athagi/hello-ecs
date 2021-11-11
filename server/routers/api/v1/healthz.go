@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,10 +13,11 @@ import (
 // @Success 200 {object} app.Response
 // @Failure 500 {object} app.Response
 // @Router /api/v1/tags [get]
-func GetTags(c *gin.Context) {
+func GetHealthz(c *gin.Context) {
 
 	c.JSON(200, gin.H{
-		"message": "ping",
+		"status":  http.StatusOK,
+		"message": "server is alive",
 	})
 
 }

@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/athagi/hello-copilot/pkg/logging"
-	"github.com/athagi/hello-copilot/pkg/setting"
-	"github.com/athagi/hello-copilot/routers"
+	"github.com/athagi/hello-copilot/server/pkg/logging"
+	"github.com/athagi/hello-copilot/server/pkg/setting"
+	"github.com/athagi/hello-copilot/server/routers"
 	"github.com/gin-gonic/gin"
 )
 

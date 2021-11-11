@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/athagi/hello-copilot/pkg/util"
+	"github.com/athagi/hello-copilot/server/pkg/util"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"

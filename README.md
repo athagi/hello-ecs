@@ -13,4 +13,8 @@ copilot init
 copilot deploy
 ```
 
-
+# development
+```
+docker-compose up -d
+```
+when you change code, container do live-reload.

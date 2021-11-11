@@ -1,6 +1,8 @@
 version: "3.8"
 services:
-  web:
-    build: .
+  server:
+    build: ./server
     ports:
-      - "80:80"
+      - "8000:8000"
+    volumes:
+      - ./server:/go/src

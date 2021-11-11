@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/athagi/hello-copilot/pkg/file"
+	"github.com/athagi/hello-copilot/server/pkg/file"
 )
 
 type Level int

@@ -1,4 +1,4 @@
-module github.com/athagi/hello-copilot
+module github.com/athagi/hello-copilot/server
 
 go 1.17
 

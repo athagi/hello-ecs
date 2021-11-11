@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/athagi/hello-copilot/pkg/setting"
+	"github.com/athagi/hello-copilot/server/pkg/setting"
 )
 
 // getLogFilePath get the log file save path
